@@ -19,7 +19,6 @@ function App() {
   const [useDefaultPrompt, setUseDefaultPrompt] = useState(true);
   const [customPrompt, setCustomPrompt] = useState('');
   const [useCustomPrompt, setUseCustomPrompt] = useState(false);
-  const [optimizeNote, setOptimizeNote] = useState('');
   const [suggestedYaml, setSuggestedYaml] = useState('');
   const [isPolling, setIsPolling] = useState(false);
 
@@ -52,17 +51,10 @@ function App() {
   };
 
   const handleSubmit = async () => {
-    const promptText = [];
-
-    if (useDefaultPrompt) {
-      promptText.push(
-        '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.',
-        '결과는 쿠버네티스 Deployment YAML 형식으로 반환해줘.'
-      );
-    }
+    const userPromptLines = [];
 
     if (useCustomPrompt && customPrompt.trim() !== '') {
-      promptText.push(customPrompt);
+      userPromptLines.push(customPrompt);
     }
 
     try {
@@ -78,10 +70,10 @@ function App() {
       await uploadToS3(uploadUrl, rawData); // ✅ rawData만 S3에 저장
 
       const payload = {
-        yamlOrigin: yamlInput, // ✅ 사용자가 입력한 YAML은 직접 전달
-        rawData: key,          // ✅ S3 Key를 전달
-        prompt: promptText.join('\n'),
-        notes: optimizeNote
+        yamlOrigin: yamlInput,
+        rawData: key,
+        defaultPrompt: useDefaultPrompt ? '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.' : '',
+        userPrompt: userPromptLines.join('\n'),
       };
 
       const response = await fetch(executeApi, {
