@@ -1,10 +1,17 @@
 import React, { useState } from 'react';
 import './App.css';
 
-// .env에 정의된 API Gateway 기본 URL
 const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
 const executeApi = `${baseUrl}/execute`;
 const resultApi = `${baseUrl}/result`;
+const presignApi = `${baseUrl}/presign`;
+
+const generateUUID = () => {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11)
+    .replace(/[018]/g, c =>
+      (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+    );
+};
 
 function App() {
   const [yamlInput, setYamlInput] = useState('');
@@ -15,106 +22,132 @@ function App() {
   const [optimizeNote, setOptimizeNote] = useState('');
   const [suggestedYaml, setSuggestedYaml] = useState('');
   const [isPolling, setIsPolling] = useState(false);
-  const [pollingId, setPollingId] = useState(null);
 
-const handleSubmit = async () => {
-  const promptText = [];
-
-  if (useDefaultPrompt) {
-    promptText.push(
-      '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.',
-      '결과는 쿠버네티스 Deployment YAML 형식으로 반환해줘.'
-    );
-  }
-  if (useCustomPrompt && customPrompt.trim() !== '') {
-    promptText.push(customPrompt);
-  }
-
-  const payload = {
-    yamlOrigin: yamlInput,
-    rawData: rawData,
-    prompt: promptText.join('\n'),
-    notes: optimizeNote
-  };
-
-  try {
-    setSuggestedYaml('Step Functions 실행 중...');
-    const response = await fetch(executeApi, {
+  const getPresignedUrl = async (fileName) => {
+    const res = await fetch(presignApi, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({ filename: fileName })
     });
 
-    // 🔴 HTTP 200 이 아닐 경우 오류 발생시키기
-    if (!response.ok) {
-      const text = await response.text();
-      console.error('❌ 실행 API 응답 오류:', response.status, text);
-      throw new Error(`서버 응답 오류: ${response.status}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`presign 요청 실패: ${res.status}, ${text}`);
     }
 
-    const result = await response.json();
-    const executionArn = result.executionArn;
+    return await res.json();
+  };
 
-    if (!executionArn) {
-      setSuggestedYaml('executionArn을 받지 못했습니다.');
-      return;
+  const uploadToS3 = async (url, content) => {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: new Blob([content], { type: 'application/json' })
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`S3 업로드 실패: ${res.status}, ${text}`);
+    }
+  };
+
+  const handleSubmit = async () => {
+    const promptText = [];
+
+    if (useDefaultPrompt) {
+      promptText.push(
+        '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.',
+        '결과는 쿠버네티스 Deployment YAML 형식으로 반환해줘.'
+      );
     }
 
-    setIsPolling(true);
+    if (useCustomPrompt && customPrompt.trim() !== '') {
+      promptText.push(customPrompt);
+    }
 
-    const intervalId = setInterval(async () => {
-      try {
-        const pollUrl = `${resultApi}?executionArn=${encodeURIComponent(executionArn)}`;
-        const pollResponse = await fetch(pollUrl);
+    try {
+      setSuggestedYaml('파일 업로드 및 Step Functions 실행 중...');
 
-        if (!pollResponse.ok) {
-          const errText = await pollResponse.text();
-          console.error('❌ Polling API 응답 오류:', pollResponse.status, errText);
-          throw new Error(`결과 API 응답 오류: ${pollResponse.status}`);
-        }
+      const now = new Date();
+      const pad = (n) => n.toString().padStart(2, '0');
+      const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+      const uuid = generateUUID();
+      const fileName = `${dateStr}-${uuid}.txt`;
 
-        const pollResult = await pollResponse.json();
+      const { uploadUrl, key } = await getPresignedUrl(fileName);
+      await uploadToS3(uploadUrl, rawData); // ✅ rawData만 S3에 저장
 
-        if (pollResult.status === 'SUCCEEDED') {
-          clearInterval(intervalId);
-          setIsPolling(false);
+      const payload = {
+        yamlOrigin: yamlInput, // ✅ 사용자가 입력한 YAML은 직접 전달
+        rawData: key,          // ✅ S3 Key를 전달
+        prompt: promptText.join('\n'),
+        notes: optimizeNote
+      };
 
-          const raw = pollResult.result?.Payload?.body;
+      const response = await fetch(executeApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-          try {
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`서버 응답 오류: ${response.status}, ${text}`);
+      }
+
+      const result = await response.json();
+      const executionArn = result.executionArn;
+
+      if (!executionArn) {
+        setSuggestedYaml('executionArn을 받지 못했습니다.');
+        return;
+      }
+
+      setIsPolling(true);
+      const intervalId = setInterval(async () => {
+        try {
+          const pollUrl = `${resultApi}?executionArn=${encodeURIComponent(executionArn)}`;
+          const pollResponse = await fetch(pollUrl);
+
+          if (!pollResponse.ok) {
+            const errText = await pollResponse.text();
+            throw new Error(`결과 API 응답 오류: ${pollResponse.status}, ${errText}`);
+          }
+
+          const pollResult = await pollResponse.json();
+
+          if (pollResult.status === 'SUCCEEDED') {
+            clearInterval(intervalId);
+            setIsPolling(false);
+
+            const raw = pollResult.result?.Payload?.body;
             const firstParsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+
             const finalYaml = typeof firstParsed?.finalYaml === 'string' &&
               firstParsed.finalYaml.trim().startsWith('{')
               ? JSON.parse(firstParsed.finalYaml)
               : firstParsed.finalYaml;
 
-            setSuggestedYaml(
-              typeof finalYaml === 'string'
-                ? finalYaml
-                : JSON.stringify(finalYaml, null, 2)
-            );
-          } catch (e) {
-            setSuggestedYaml('결과 파싱 오류: ' + e.message);
+            const output = typeof finalYaml === 'string'
+              ? finalYaml
+              : JSON.stringify(finalYaml, null, 2);
+
+            setSuggestedYaml(output);
+          } else if (pollResult.status === 'FAILED') {
+            clearInterval(intervalId);
+            setIsPolling(false);
+            setSuggestedYaml(`에러 발생: ${pollResult.error || '원인 불명'}`);
           }
-        } else if (pollResult.status === 'FAILED') {
+        } catch (e) {
           clearInterval(intervalId);
           setIsPolling(false);
-          setSuggestedYaml(`에러 발생: ${pollResult.error || '원인 불명'}`);
+          setSuggestedYaml('Polling 중 오류 발생: ' + e.message);
         }
-      } catch (e) {
-        clearInterval(intervalId);
-        setIsPolling(false);
-        setSuggestedYaml('Polling 중 오류 발생: ' + e.message);
-      }
-    }, 3000);
-
-    setPollingId(intervalId);
-  } catch (err) {
-    console.error('❌ API 호출 실패:', err);
-    setSuggestedYaml('에러 발생: ' + err.message);
-  }
-};
-
+      }, 3000);
+    } catch (err) {
+      setSuggestedYaml('에러 발생: ' + err.message);
+    }
+  };
 
   const sectionStyle = {
     backgroundColor: '#f8f9fa',
@@ -181,17 +214,6 @@ const handleSubmit = async () => {
           style={{ width: '100%', marginTop: '0.5rem' }}
         />
       </div>
-
-      {/* <div style={sectionStyle}>
-        <h4>5. Kubecost 최적화 제안 사항 입력</h4>
-        <textarea
-          rows={4}
-          placeholder="Kubecost API로 받은 리소스 최적화 권장 사항을 여기에 붙여넣으세요."
-          value={optimizeNote}
-          onChange={(e) => setOptimizeNote(e.target.value)}
-          style={{ width: '100%' }}
-        />
-      </div> */}
 
       <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <button className="kostai-button" onClick={handleSubmit} disabled={isPolling}>
