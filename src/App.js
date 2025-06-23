@@ -5,6 +5,7 @@ const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
 const executeApi = `${baseUrl}/execute`;
 const resultApi = `${baseUrl}/result`;
 const presignApi = `${baseUrl}/presign`;
+const acceptApi = `${baseUrl}/accept`;
 
 const generateUUID = () => {
   return ([1e7]+-1e3+-4e3+-8e3+-1e11)
@@ -21,6 +22,8 @@ function App() {
   const [useCustomPrompt, setUseCustomPrompt] = useState(false);
   const [suggestedYaml, setSuggestedYaml] = useState('');
   const [isPolling, setIsPolling] = useState(false);
+  const [yamlFileName, setYamlFileName] = useState('');
+  const [yamlPath, setYamlPath] = useState('');
 
   const getPresignedUrl = async (fileName) => {
     const res = await fetch(presignApi, {
@@ -67,7 +70,7 @@ function App() {
       const fileName = `${dateStr}-${uuid}.txt`;
 
       const { uploadUrl, key } = await getPresignedUrl(fileName);
-      await uploadToS3(uploadUrl, rawData); // ✅ rawData만 S3에 저장
+      await uploadToS3(uploadUrl, rawData);
 
       const payload = {
         yamlOrigin: yamlInput,
@@ -138,6 +141,31 @@ function App() {
       }, 3000);
     } catch (err) {
       setSuggestedYaml('에러 발생: ' + err.message);
+    }
+  };
+
+  const handleAccept = async () => {
+    try {
+      const payload = {
+        yamlRecommended: suggestedYaml,
+        yamlFileName,
+        yamlPath
+      };
+
+      const res = await fetch(acceptApi, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`수락 요청 실패: ${res.status}, ${text}`);
+      }
+
+      alert('CD 트리거 요청 성공!');
+    } catch (err) {
+      alert(`에러: ${err.message}`);
     }
   };
 
@@ -225,8 +253,23 @@ function App() {
           {suggestedYaml}
         </pre>
 
+        <input
+          type="text"
+          placeholder="파일 이름 (예: travel_control.yaml)"
+          value={yamlFileName}
+          onChange={(e) => setYamlFileName(e.target.value)}
+          style={{ width: '100%', marginBottom: '0.5rem' }}
+        />
+        <input
+          type="text"
+          placeholder="저장 경로 (예: test)"
+          value={yamlPath}
+          onChange={(e) => setYamlPath(e.target.value)}
+          style={{ width: '100%', marginBottom: '1rem' }}
+        />
+
         <div style={{ marginTop: '1rem', textAlign: 'center' }}>
-          <button className="kostai-button" style={{ marginRight: '1rem' }}>수락</button>
+          <button className="kostai-button" style={{ marginRight: '1rem' }} onClick={handleAccept}>수락</button>
           <button className="kostai-button secondary">거절</button>
         </div>
       </div>
