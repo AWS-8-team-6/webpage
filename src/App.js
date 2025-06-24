@@ -15,6 +15,7 @@ const generateUUID = () => {
 };
 
 function App() {
+  // 기존 상태
   const [yamlInput, setYamlInput] = useState('');
   const [rawData, setRawData] = useState('');
   const [useDefaultPrompt, setUseDefaultPrompt] = useState(true);
@@ -25,6 +26,20 @@ function App() {
   const [yamlFileName, setYamlFileName] = useState('');
   const [yamlPath, setYamlPath] = useState('');
 
+  // 새로 추가된 Kubecost API 생성기 상태
+  const [isApiGeneratorOpen, setIsApiGeneratorOpen] = useState(false);
+  const [kubecostBaseUrl, setKubecostBaseUrl] = useState('');
+  const [apiType, setApiType] = useState('allocation'); // 'allocation' 또는 'assets'
+  const [window, setWindow] = useState('1d');
+  const [excludedNamespaces, setExcludedNamespaces] = useState({
+    kubecost: true,
+    argocd: true,
+    'kube-system': true,
+  });
+  const [generatedApiUrl, setGeneratedApiUrl] = useState('');
+
+
+  // --- 기존 함수들 ---
   const getPresignedUrl = async (fileName) => {
     const res = await fetch(presignApi, {
       method: 'POST',
@@ -169,6 +184,52 @@ function App() {
     }
   };
 
+  // --- 새로 추가된 함수들 ---
+  const handleGenerateApiUrl = () => {
+    if (!kubecostBaseUrl) {
+      alert('Kubecost 웹 접속 링크를 입력해주세요.');
+      return;
+    }
+
+    let url = `${kubecostBaseUrl}:9003/`;
+    let params = new URLSearchParams();
+
+    if (apiType === 'allocation') {
+      url += 'allocation';
+      params.append('window', window);
+      params.append('aggregate', 'pod');
+      
+      const toExclude = Object.entries(excludedNamespaces)
+        .filter(([_, checked]) => checked)
+        .map(([name]) => `"${name}"`)
+        .join(',');
+
+      if (toExclude) {
+        params.append('filter', `namespace!:${toExclude}`);
+      }
+    } else { // assets
+      url += 'assets';
+      params.append('window', window);
+      params.append('filter', 'category:"Compute"');
+    }
+
+    setGeneratedApiUrl(`${url}?${params.toString()}`);
+  };
+
+  const handleCopyUrl = () => {
+    if (generatedApiUrl) {
+      navigator.clipboard.writeText(generatedApiUrl)
+        .then(() => alert('API URL이 클립보드에 복사되었습니다.'))
+        .catch(err => alert('복사 실패: ' + err));
+    }
+  };
+
+  const handleCheckboxChange = (e) => {
+    const { name, checked } = e.target;
+    setExcludedNamespaces(prev => ({ ...prev, [name]: checked }));
+  };
+
+
   const sectionStyle = {
     backgroundColor: '#f8f9fa',
     border: '1px solid #ddd',
@@ -192,6 +253,83 @@ function App() {
           style={{ width: '100%' }}
         />
       </div>
+
+      {/* ================================================================== */}
+      {/* ======================= 새로 추가된 토글 섹션 ======================= */}
+      {/* ================================================================== */}
+      <div style={sectionStyle}>
+        <button 
+          onClick={() => setIsApiGeneratorOpen(!isApiGeneratorOpen)}
+          style={{ all: 'unset', cursor: 'pointer', fontWeight: 'bold', color: '#007bff', marginBottom: isApiGeneratorOpen ? '1rem' : '0' }}
+        >
+          <h4>{isApiGeneratorOpen ? '▼ Kubecost API URL 생성기 닫기' : '► Kubecost API URL 생성기 열기'}</h4>
+        </button>
+
+        {isApiGeneratorOpen && (
+          <div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label>Kubecost 웹 접속 링크</label>
+              <input
+                type="text"
+                placeholder="http://<your-kubecost-address>"
+                value={kubecostBaseUrl}
+                onChange={(e) => setKubecostBaseUrl(e.target.value)}
+                style={{ width: '100%', marginTop: '0.5rem' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem' }}></label>
+              <label style={{ marginRight: '1rem' }}>
+                <input type="radio" value="allocation" checked={apiType === 'allocation'} onChange={() => setApiType('allocation')} /> Pod 중심
+              </label>
+              <label>
+                <input type="radio" value="assets" checked={apiType === 'assets'} onChange={() => setApiType('assets')} /> Node 중심
+              </label>
+            </div>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label>데이터 기간 (예: 1h, 6h, 24h, 1d, 7d, 30d ···)</label>
+              <input
+                type="text"
+                value={window}
+                onChange={(e) => setWindow(e.target.value)}
+                style={{ width: '100%', marginTop: '0.5rem' }}
+              />
+            </div>
+            
+            {apiType === 'allocation' && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>제외할 네임스페이스 (권장)</label>
+                {Object.keys(excludedNamespaces).map(ns => (
+                  <label key={ns} style={{ marginRight: '1rem' }}>
+                    <input
+                      type="checkbox"
+                      name={ns}
+                      checked={excludedNamespaces[ns]}
+                      onChange={handleCheckboxChange}
+                    /> {ns}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <button className="kostai-button" onClick={handleGenerateApiUrl}>URL 생성</button>
+            
+            {generatedApiUrl && (
+              <div style={{ marginTop: '1rem' }}>
+                <pre style={{ background: '#e9ecef', padding: '0.5rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', borderRadius: '6px' }}>
+                  {generatedApiUrl}
+                </pre>
+                <button className="kostai-button secondary" style={{marginTop: '0.5rem'}} onClick={handleCopyUrl}>복사</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {/* ================================================================== */}
+      {/* ========================= 추가된 섹션 끝 ========================== */}
+      {/* ================================================================== */}
 
       <div style={sectionStyle}>
         <h4>2. Kubecost raw data 입력</h4>
