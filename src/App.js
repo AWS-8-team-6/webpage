@@ -422,9 +422,10 @@ function App() {
               height: '500px',
               overflowY: 'auto'
             }}>
-              {typeof suggestedYaml === 'string'
+              {/* {typeof suggestedYaml === 'string'
                 ? suggestedYaml.replace(/\\n/g, '\n')
-                : suggestedYaml}
+                : suggestedYaml} */}
+              {suggestedYaml}
             </pre>
           </div>
         </div>
