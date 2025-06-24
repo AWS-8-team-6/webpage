@@ -388,23 +388,54 @@ function App() {
       </div>
 
       <div style={sectionStyle}>
-        <h4>Kostai가 제안하는 YAML</h4>
-        <pre style={{
-          background: '#f0f0f0',
-          padding: '1rem',
-          whiteSpace: 'pre-wrap',
-          borderRadius: '6px',
-          border: '1px solid #ccc'
-        }}>
-          {suggestedYaml}
-        </pre>
+        <h4>YAML 비교 보기</h4>
 
+        {/* YAML 비교 영역: 좌우 2개 칼럼 */}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {/* 왼쪽: 사용자 입력 YAML */}
+          <div style={{ flex: 1 }}>
+            <h5 style={{ marginBottom: '0.5rem' }}>① 사용자 입력 YAML</h5>
+            <pre style={{
+              background: '#f8f9fa',
+              padding: '1rem',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              borderRadius: '6px',
+              border: '1px solid #ccc',
+              height: '500px',
+              overflowY: 'auto'
+            }}>
+              {yamlInput}
+            </pre>
+          </div>
+
+          {/* 오른쪽: Kostai가 제안한 YAML */}
+          <div style={{ flex: 1 }}>
+            <h5 style={{ marginBottom: '0.5rem' }}>② Kostai가 제안하는 YAML</h5>
+            <pre style={{
+              background: '#f0f0f0',
+              padding: '1rem',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              borderRadius: '6px',
+              border: '1px solid #ccc',
+              height: '500px',
+              overflowY: 'auto'
+            }}>
+              {typeof suggestedYaml === 'string'
+                ? suggestedYaml.replace(/\\n/g, '\n')
+                : suggestedYaml}
+            </pre>
+          </div>
+        </div>
+
+        {/* 파일 이름/경로 입력 */}
         <input
           type="text"
           placeholder="파일 이름 (예: travel_control.yaml)"
           value={yamlFileName}
           onChange={(e) => setYamlFileName(e.target.value)}
-          style={{ width: '100%', marginBottom: '0.5rem' }}
+          style={{ width: '100%', marginTop: '1rem', marginBottom: '0.5rem' }}
         />
         <input
           type="text"
@@ -414,11 +445,13 @@ function App() {
           style={{ width: '100%', marginBottom: '1rem' }}
         />
 
+        {/* 버튼 영역 */}
         <div style={{ marginTop: '1rem', textAlign: 'center' }}>
           <button className="kostai-button" style={{ marginRight: '1rem' }} onClick={handleAccept}>수락</button>
           <button className="kostai-button secondary">거절</button>
         </div>
       </div>
+
     </div>
   );
 }
