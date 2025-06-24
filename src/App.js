@@ -90,7 +90,15 @@ function App() {
       const payload = {
         yamlOrigin: yamlInput,
         rawData: key,
-        defaultPrompt: useDefaultPrompt ? '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.' : '',
+        //defaultPrompt: useDefaultPrompt ? '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.' : '',
+        defaultPrompt: useDefaultPrompt ? `### Do
+- “반드시” 구체적이고, 자세하며, 정확할 것.
+- 유저의 의도가 불명확하다면, 해당 의도에 대한 제안은 제시하지 말고, 명확히 요청된 사항만 처리할 것
+
+### Don’t
+- “절대” 메타 문구(meta-phrases) 사용 금지 (ex. “알겠습니다.”, “안녕하세요”, “확인했습니다.”)
+- “절대” 요구된 사항이 아니라면 요약하지 말 것
+- “절대” 요청하지 않은 제안사항을 제공하지 말 것` : '',
         userPrompt: userPromptLines.join('\n'),
       };
 
