@@ -68,6 +68,7 @@ function App() {
 	});
 	const [generatedApiUrl, setGeneratedApiUrl] = useState("");
 	const [loadingMessage, setLoadingMessage] = useState("");
+	const [comparisonReport, setComparisonReport] = useState("");
 
 	// isPolling 상태가 변경될 때마다 이펙트를 실행합니다.
 	useEffect(() => {
@@ -120,6 +121,7 @@ function App() {
 	};
 
 	const handleSubmit = async () => {
+		setComparisonReport("");
 		const userPromptLines = [];
 		if (useCustomPrompt && customPrompt.trim()) {
 			userPromptLines.push(customPrompt.trim());
@@ -208,6 +210,16 @@ function App() {
 								? finalYaml
 								: JSON.stringify(finalYaml, null, 2)
 						);
+
+						const reportRaw =
+							firstParsed?.comparison_report ?? firstParsed?.comparisonReport;
+						const reportText =
+							typeof reportRaw === "string"
+								? reportRaw
+								: reportRaw
+								? JSON.stringify(reportRaw, null, 2)
+								: "";
+						setComparisonReport(reportText);
 					} else if (pollResult.status === "FAILED") {
 						clearInterval(intervalId);
 						setLoadingPhase(null);
@@ -530,7 +542,6 @@ function App() {
 						</label>
 					</div>
 
-					{/* 커스텀 텍스트영역은 체크 시에만 */}
 					{useCustomPrompt && (
 						<textarea
 							rows={4}
@@ -561,6 +572,19 @@ function App() {
 						<p>{loadingMessage}</p>
 					</div>
 				)}
+			</div>
+
+			<div className="form-section">
+				<h4 className="section-title">4. 비교 리포트</h4>
+				<div className="input-card">
+					<textarea
+						rows={6}
+						readOnly
+						placeholder="비교 리포트가 여기 표시됩니다."
+						value={comparisonReport}
+						style={{ width: "100%" }}
+					/>
+				</div>
 			</div>
 
 			<div className="compare-section" style={{ sectionStyle }}>
