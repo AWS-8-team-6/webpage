@@ -69,6 +69,7 @@ function App() {
 	const [generatedApiUrl, setGeneratedApiUrl] = useState("");
 	const [loadingMessage, setLoadingMessage] = useState("");
 	const [comparisonReport, setComparisonReport] = useState("");
+	const [copySuccess, setCopySuccess] = useState("");
 
 	// isPolling 상태가 변경될 때마다 이펙트를 실행합니다.
 	useEffect(() => {
@@ -211,15 +212,13 @@ function App() {
 								: JSON.stringify(finalYaml, null, 2)
 						);
 
-						const reportRaw =
-							firstParsed?.comparison_report ?? firstParsed?.comparisonReport;
-						const reportText =
-							typeof reportRaw === "string"
-								? reportRaw
-								: reportRaw
-								? JSON.stringify(reportRaw, null, 2)
-								: "";
-						setComparisonReport(reportText);
+						setComparisonReport(
+							typeof pollResult.report === "string"
+								? pollResult.report
+								: pollResult.report
+								? JSON.stringify(pollResult.report, null, 2)
+								: ""
+						);
 					} else if (pollResult.status === "FAILED") {
 						clearInterval(intervalId);
 						setLoadingPhase(null);
@@ -308,12 +307,17 @@ function App() {
 	};
 
 	const handleCopyUrl = () => {
-		if (generatedApiUrl) {
-			navigator.clipboard
-				.writeText(generatedApiUrl)
-				.then(() => alert("API URL이 클립보드에 복사되었습니다."))
-				.catch((err) => alert("복사 실패: " + err));
-		}
+		if (!generatedApiUrl) return;
+		navigator.clipboard
+			.writeText(generatedApiUrl)
+			.then(() => {
+				setCopySuccess("복사 완료!");
+				setTimeout(() => setCopySuccess(""), 2000);
+			})
+			.catch(() => {
+				setCopySuccess("복사 실패");
+				setTimeout(() => setCopySuccess(""), 2000);
+			});
 	};
 
 	const handleCheckboxChange = (e) => {
@@ -489,6 +493,17 @@ function App() {
 								>
 									복사
 								</button>
+								{copySuccess && (
+									<div
+										style={{
+											fontSize: "0.9rem",
+											color: "#28a745",
+											marginTop: "0.3rem",
+										}}
+									>
+										{copySuccess}
+									</div>
+								)}
 							</div>
 						)}
 					</div>
