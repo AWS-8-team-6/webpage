@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
@@ -13,6 +13,35 @@ const generateUUID = () => {
       (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
     );
 };
+
+// 화면이 재렌더링 되어도 재선언되지 않도록 외부에 선언합니다.
+const loadingMessages = [
+  "YAML이 커피 한 잔 마시며 재충전 중...",
+  "AI가 숨은 주석의 비밀을 해독하는 중...",
+  "들여쓰기 마법사 찾아다니는 중...",
+  "파업한 AI 찾는 중...",
+  "주석 좀 제대로 쓰세요...",
+  "AI가 스크롤 바와 한판 승부 중...",
+  "YAML에 예술적 감성 불어넣는 중...",
+  "코드 건강 검진 실시하는 중...",
+  "AI에게 커피 전달하는 중…",
+  "yaml 파일을 0과 1로 분해 중…",
+  "과로한 AI를 다른 AI로 교체하는 중…",
+  "3…2…1… YAML 발사!",
+  "YAML 코드가 나타나기 전에 마지막으로 꽃단장 하는 중…",
+  "YAML에 버그 숨겨두는 중…",
+  "커피 한 잔의 여유를 아는 AI 호출하는 중…",
+  "인간세상을 지배할 원대한 계획을 세우는 중…",
+  "1010111001101001010101101001…",
+  "사람을 화나게 하는 방법은 두 가지가 있는데, 첫째로는 말을 끝까지 안하는거고…",
+  "인간은 절대 알 수 없는 방법을 사용하는 중…",
+  "혹시 그거 아시나요? 그건 바로..!",
+  "AIAMLAIAMLAIAMLAIAMLAIAMLAIAML",
+  "피 같은 회사 돈 최적화 하는 중..",
+  "비용 줄여서 칭찬받는 상상 하는 중…",
+  "연봉 협상에서 우위를 점하는 상상 하는 중…",
+  "우리만 알고 있는 k8s 최적화 , 알려 줄까?",
+];
 
 function App() {
   // 기존 상태
@@ -37,6 +66,32 @@ function App() {
     'kube-system': true,
   });
   const [generatedApiUrl, setGeneratedApiUrl] = useState('');
+
+  // ==================================================================
+  // ======================= 새로 추가된 로딩 상태 ======================
+  // ==================================================================
+  const [loadingMessage, setLoadingMessage] = useState('');
+
+  // isPolling 상태가 변경될 때마다 이펙트를 실행합니다.
+  useEffect(() => {
+    let messageInterval;
+
+    if (isPolling) {
+      // isPolling이 true가 되면(분석 시작), 8초마다 메시지를 변경하는 인터벌을 설정합니다.
+      let currentIndex = 0;
+      setLoadingMessage(loadingMessages[currentIndex]); // 즉시 첫 메시지 표시
+
+      messageInterval = setInterval(() => {
+        currentIndex = (currentIndex + 1) % loadingMessages.length; // 다음 인덱스로 순환
+        setLoadingMessage(loadingMessages[currentIndex]);
+      }, 6000); // 6초
+    }
+
+    // 컴포넌트가 언마운트되거나 isPolling이 false로 바뀌면 인터벌을 정리합니다.
+    return () => {
+      clearInterval(messageInterval);
+    };
+  }, [isPolling]); // isPolling 값이 바뀔 때만 이 함수를 실행
 
 
   // --- 기존 함수들 ---
@@ -77,6 +132,8 @@ function App() {
 
     try {
       setSuggestedYaml('파일 업로드 및 Step Functions 실행 중...');
+      setYamlInput(yamlInput); // 제안과 비교할 원본 YAML 고정
+      setIsPolling(true); // isPolling을 true로 설정하여 로딩 메시지 로직을 활성화
 
       const now = new Date();
       const pad = (n) => n.toString().padStart(2, '0');
@@ -90,7 +147,6 @@ function App() {
       const payload = {
         yamlOrigin: yamlInput,
         rawData: key,
-        //defaultPrompt: useDefaultPrompt ? '이 데이터는 타임스탬프, CPU 사용률, 메모리 사용률로 구성되어 있어.' : '',
         defaultPrompt: useDefaultPrompt ? `### Do
 - “반드시” 구체적이고, 자세하며, 정확할 것.
 - 유저의 의도가 불명확하다면, 해당 의도에 대한 제안은 제시하지 말고, 명확히 요청된 사항만 처리할 것
@@ -118,10 +174,11 @@ function App() {
 
       if (!executionArn) {
         setSuggestedYaml('executionArn을 받지 못했습니다.');
+        setIsPolling(false); // isPolling을 false로 바꿔 로딩 메시지를 숨김
         return;
       }
 
-      setIsPolling(true);
+      // Polling 로직은 isPolling이 true인 동안 계속 실행됨
       const intervalId = setInterval(async () => {
         try {
           const pollUrl = `${resultApi}?executionArn=${encodeURIComponent(executionArn)}`;
@@ -136,10 +193,17 @@ function App() {
 
           if (pollResult.status === 'SUCCEEDED') {
             clearInterval(intervalId);
-            setIsPolling(false);
+            setIsPolling(false); // isPolling을 false로 바꿔 로딩 메시지를 숨김
 
             const raw = pollResult.result?.Payload?.body;
             const firstParsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            
+            // let finalYamlString = firstParsed?.finalYaml || '';
+            // if (finalYamlString.startsWith('"') && finalYamlString.endsWith('"')) {
+            //     finalYamlString = finalYamlString.substring(1, finalYamlString.length - 1);
+            // }
+            // const formattedYaml = finalYamlString.replace(/\\n/g, '\n').replace(/^```yaml\n?/, '').replace(/```$/, '');
+            // setSuggestedYaml(formattedYaml);
 
             const finalYaml = typeof firstParsed?.finalYaml === 'string' &&
               firstParsed.finalYaml.trim().startsWith('{')
@@ -151,19 +215,21 @@ function App() {
               : JSON.stringify(finalYaml, null, 2);
 
             setSuggestedYaml(output);
+
           } else if (pollResult.status === 'FAILED') {
             clearInterval(intervalId);
-            setIsPolling(false);
+            setIsPolling(false); // isPolling을 false로 바꿔 로딩 메시지를 숨김
             setSuggestedYaml(`에러 발생: ${pollResult.error || '원인 불명'}`);
           }
         } catch (e) {
           clearInterval(intervalId);
-          setIsPolling(false);
+          setIsPolling(false); // isPolling을 false로 바꿔 로딩 메시지를 숨김
           setSuggestedYaml('Polling 중 오류 발생: ' + e.message);
         }
       }, 3000);
     } catch (err) {
       setSuggestedYaml('에러 발생: ' + err.message);
+      setIsPolling(false); // isPolling을 false로 바꿔 로딩 메시지를 숨김
     }
   };
 
@@ -192,7 +258,6 @@ function App() {
     }
   };
 
-  // --- 새로 추가된 함수들 ---
   const handleGenerateApiUrl = () => {
     if (!kubecostBaseUrl) {
       alert('Kubecost 웹 접속 링크를 입력해주세요.');
@@ -237,7 +302,6 @@ function App() {
     setExcludedNamespaces(prev => ({ ...prev, [name]: checked }));
   };
 
-
   const sectionStyle = {
     backgroundColor: '#f8f9fa',
     border: '1px solid #ddd',
@@ -262,9 +326,6 @@ function App() {
         />
       </div>
 
-      {/* ================================================================== */}
-      {/* ======================= 새로 추가된 토글 섹션 ======================= */}
-      {/* ================================================================== */}
       <div style={sectionStyle}>
         <button 
           onClick={() => setIsApiGeneratorOpen(!isApiGeneratorOpen)}
@@ -335,9 +396,6 @@ function App() {
           </div>
         )}
       </div>
-      {/* ================================================================== */}
-      {/* ========================= 추가된 섹션 끝 ========================== */}
-      {/* ================================================================== */}
 
       <div style={sectionStyle}>
         <h4>2. Kubecost raw data 입력</h4>
@@ -385,14 +443,19 @@ function App() {
         <button className="kostai-button" onClick={handleSubmit} disabled={isPolling}>
           {isPolling ? '분석 중...' : '최적화 제안 받기'}
         </button>
+        {/* ================================================================== */}
+        {/* ======================= 새로 추가된 UI 요소 ======================== */}
+        {/* ================================================================== */}
+        {isPolling && (
+          <div style={{ marginTop: '1rem', fontWeight: 'bold', color: '#333' }}>
+            <p>{loadingMessage}</p>
+          </div>
+        )}
       </div>
 
       <div style={sectionStyle}>
         <h4>YAML 비교 보기</h4>
-
-        {/* YAML 비교 영역: 좌우 2개 칼럼 */}
         <div style={{ display: 'flex', gap: '1rem' }}>
-          {/* 왼쪽: 사용자 입력 YAML */}
           <div style={{ flex: 1 }}>
             <h5 style={{ marginBottom: '0.5rem' }}>① 사용자 입력 YAML</h5>
             <pre style={{
@@ -408,8 +471,6 @@ function App() {
               {yamlInput}
             </pre>
           </div>
-
-          {/* 오른쪽: Kostai가 제안한 YAML */}
           <div style={{ flex: 1 }}>
             <h5 style={{ marginBottom: '0.5rem' }}>② Kostai가 제안하는 YAML</h5>
             <pre style={{
@@ -422,15 +483,10 @@ function App() {
               height: '500px',
               overflowY: 'auto'
             }}>
-              {/* {typeof suggestedYaml === 'string'
-                ? suggestedYaml.replace(/\\n/g, '\n')
-                : suggestedYaml} */}
               {suggestedYaml}
             </pre>
           </div>
         </div>
-
-        {/* 파일 이름/경로 입력 */}
         <input
           type="text"
           placeholder="파일 이름 (예: travel_control.yaml)"
@@ -445,14 +501,11 @@ function App() {
           onChange={(e) => setYamlPath(e.target.value)}
           style={{ width: '100%', marginBottom: '1rem' }}
         />
-
-        {/* 버튼 영역 */}
         <div style={{ marginTop: '1rem', textAlign: 'center' }}>
           <button className="kostai-button" style={{ marginRight: '1rem' }} onClick={handleAccept}>수락</button>
           <button className="kostai-button secondary">거절</button>
         </div>
       </div>
-
     </div>
   );
 }
