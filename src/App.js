@@ -60,7 +60,7 @@ function App() {
 	const [isApiGeneratorOpen, setIsApiGeneratorOpen] = useState(false);
 	const [kubecostBaseUrl, setKubecostBaseUrl] = useState("");
 	const [apiType, setApiType] = useState("allocation"); // 'allocation' 또는 'assets'
-	const [duration, setduration] = useState("1d");
+	const [windowParam, setWindowParam] = useState("1d");
 	const [excludedNamespaces, setExcludedNamespaces] = useState({
 		kubecost: true,
 		argocd: true,
@@ -271,10 +271,11 @@ function App() {
 
 		let url = `${kubecostBaseUrl}:9003/`;
 		let params = new URLSearchParams();
-
+	
 		if (apiType === "allocation") {
 			url += "allocation";
-			params.append("duration", duration);
+
+			params.append("window", windowParam);
 			params.append("aggregate", "pod");
 
 			const toExclude = Object.entries(excludedNamespaces)
@@ -288,7 +289,8 @@ function App() {
 		} else {
 			// assets
 			url += "assets";
-			params.append("duration", duration);
+			
+			params.append("window", windowParam);
 			params.append("filter", 'category:"Compute"');
 		}
 
@@ -442,8 +444,8 @@ function App() {
 							</label>
 							<input
 								type="text"
-								value={duration}
-								onChange={(e) => setduration(e.target.value)}
+								value={windowParam}
+								onChange={(e) => setWindowParam(e.target.value)}
 								style={{ width: "100%", marginTop: "0.5rem" }}
 							/>
 						</div>
