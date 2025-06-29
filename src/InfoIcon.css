@@ -1,0 +1,68 @@
+.info-icon-container {
+  position: relative; /* 자식 요소인 .info-tooltip의 기준점이 됩니다. */
+  display: inline-flex; /* 다른 요소 옆에 자연스럽게 배치됩니다. */
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px; /* 제목과의 간격 */
+}
+
+.info-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #aaa;
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: help; /* 마우스 커서를 도움말 모양으로 변경 */
+  user-select: none; /* 텍스트가 선택되지 않도록 설정 */
+}
+
+.info-tooltip {
+  /* 기본 상태 (숨김) */
+  visibility: hidden;
+  opacity: 0;
+  
+  /* 툴팁 스타일 */
+  position: absolute;
+  bottom: 140%; /* 아이콘보다 위쪽에 위치 */
+  left: 50%;
+  transform: translateX(-50%); /* 정확히 가운데 정렬 */
+  
+  background-color: #333;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+
+  white-space: pre-line; /* 줄바꿈 */
+  width: max-content;     /* 내용 길이에 따라 자동으로 */
+  max-width: 500px;       /* 너무 길어질 때 줄바꿈 */
+  min-width: 120px;       /* 너무 짧게 붙지 않도록 */
+
+  font-size: 13px;
+  z-index: 10;
+  
+  /* 애니메이션 효과 */
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+/* 툴팁의 꼬리(화살표) 부분 */
+.info-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%; /* 툴팁 바로 아래에 위치 */
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent; /* 위쪽 테두리만 색을 주어 삼각형 만들기 */
+}
+
+/* 컨테이너에 호버했을 때 툴팁을 보이게 함 */
+.info-icon-container:hover .info-tooltip {
+  visibility: visible;
+  opacity: 1;
+}

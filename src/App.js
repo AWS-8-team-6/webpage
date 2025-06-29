@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
+import InfoIcon from "./InfoIcon"; 
 
 const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
 const executeApi = `${baseUrl}/execute`;
@@ -348,10 +349,13 @@ function App() {
 				fontFamily: "sans-serif",
 			}}
 		>
-			<h2 style={{ marginBottom: "2rem" }}>Kostai</h2>
+			<h2 style={{ marginBottom: "2rem" }}>KostAI</h2>
 
 			<div className="form-section">
-				<h4 className="section-title">1. YAML 파일 / Terraform 파일</h4>
+				<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">1. 최적화를 진행할 파일 내용</h4>
+					<InfoIcon text="최적화를 진행할 Kubernetes yaml, Karpenter nodepool, Terraform 등의 파일 내부 텍스트를 입력해주세요." />
+				</div>
 				<div className="input-card">
 					<textarea
 						rows={6}
@@ -369,14 +373,23 @@ function App() {
 					style={{
 						all: "unset",
 						cursor: "pointer",
-						fontWeight: "bold",
+						// fontWeight: "bold",
 					}}
 				>
-					<h4>
+					{/* <h4>
 						{isApiGeneratorOpen
 							? "▼ Kubecost API URL 생성기"
-							: "► Kubecost API URL 생성기"}
-					</h4>
+							: "▶ Kubecost API URL 생성기"}
+					</h4> */}
+
+					<div style={{ display: 'flex', alignItems: 'baseline' }}>
+						<h4>
+							{isApiGeneratorOpen
+								? "▼ Kubecost API URL 생성기"
+								: "▶ Kubecost API URL 생성기"}
+						</h4>
+						<InfoIcon text="Kubecost가 설치되어있지 않은 경우, 아래 링크를 참고하여 Kubecost를 설치해주세요. \n Kubecost가 설치되어있는 경우, API URL 생성기를 통해 생성한 URL을 새로운 브라우저 탭에 붙여넣어주세요. 이를 통해 추출된 raw data 전부를 복사하여 하단의 '2. Kubecost raw data' 탭에 입력해 주세요." />
+					</div>
 				</button>
 
 				<div
@@ -515,7 +528,10 @@ function App() {
 			</div>
 
 			<div className="form-section">
-				<h4 className="section-title">2. Kubecost raw data</h4>
+				<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">2. Kubecost raw data</h4>
+					<InfoIcon text="Kubecost api를 통해 추출한 raw data를 복사 후 붙여 넣어주세요. Kubecost 설치, Kubecost api 활용에 대한 도움이 필요하실 경우 상단의 'Kubecost API URL 생성기' 탭을 확인해주세요." />
+				</div>
 				<div className="input-card">
 					<textarea
 						rows={6}
@@ -528,7 +544,10 @@ function App() {
 			</div>
 
 			<div className="form-section">
-				<h4 className="section-title">3. 프롬프트</h4>
+				<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">3. 프롬프트</h4>
+					<InfoIcon text="기본 프롬프트는 일반적인 리소스 최적화 기준을 포함하며, 필요 시 사용자 정의 프롬프트를 추가 입력해주세요." />
+				</div>
 				<div className="input-card">
 					{/* 기본 프롬프트 */}
 					<label>
@@ -596,7 +615,10 @@ function App() {
 			</div>
 
 			<div className="form-section">
-				<h4 className="section-title">4. 비교 리포트</h4>
+				<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">4. 비교 리포트</h4>
+					<InfoIcon text="원본 파일과 AI가 제안한 최종 파일을 비교하여, 어떤 리소스가 어떻게 변경되었는지를 \n 한눈에 보여줍니다." />
+				</div>
 				<div className="input-card">
 					<textarea
 						rows={6}
@@ -647,7 +669,10 @@ function App() {
 					</div>
 				</div>
 			</div>
-			<h4 className="section-title">Kostai가 제안한 파일 Github에 push하기</h4>
+			<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">Kostai가 제안한 파일 Github에 push하기</h4>
+					<InfoIcon text="KostAI가 제안한 파일을 원하는 Github repository에 push할 수 있습니다. \n Github repository 이름과 경로, Github ID와 token을 입력하면 해당 파일을 찾아서 변경, push합니다." />
+				</div>
 			<input
 				type="text"
 				placeholder="Github에 저장되어 있는 파일 이름 (예: exam_file.yaml)"
