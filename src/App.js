@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
 import InfoIcon from "./InfoIcon"; 
+import Lottie from "lottie-react";
+import loadingAnimation from "./assets/1751182673400.json";
 
 const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
 const executeApi = `${baseUrl}/execute`;
@@ -43,7 +45,7 @@ const loadingMessages = [
 	"피 같은 회사 돈 최적화 하는 중..",
 	"비용 줄여서 칭찬받는 상상 하는 중…",
 	"연봉 협상에서 우위를 점하는 상상 하는 중…",
-	"우리만 알고 있는 k8s 최적화 , 알려 줄까?",
+	"우리만 알고 있는 k8s 최적화, 알려 줄까?",
 ];
 
 function App() {
@@ -699,6 +701,28 @@ function App() {
 					거절
 				</button>
 			</div>
+			{/* 로딩 중이면 오버레이 모달 표시 */}
+			{/* {isPolling && (
+				<div className="loading-overlay">
+					<div className="loading-modal">
+						<div className="spinner" />
+						<p style={{ marginTop: "1rem", fontSize: "1.2rem" }}>{loadingMessage}</p>
+					</div>
+				</div>
+			)} */}
+
+			{isPolling && (
+				<div className="loading-overlay">
+					<div className="loading-modal">
+						<Lottie 
+							animationData={loadingAnimation} 
+							loop={true} 
+							style={{ width: 450, height: 300 }} 
+						/>
+						<p style={{ marginTop: "1rem", fontSize: "1.2rem" }}>{loadingMessage}</p>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
