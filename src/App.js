@@ -57,8 +57,8 @@ function App() {
 	const [useCustomPrompt, setUseCustomPrompt] = useState(false);
 	const [suggestedYaml, setSuggestedYaml] = useState("");
 	const [isPolling, setIsPolling] = useState(false);
-	const [yamlFileName, setYamlFileName] = useState("");
-	const [yamlPath, setYamlPath] = useState("");
+	// const [yamlFileName, setYamlFileName] = useState("");
+	// const [yamlPath, setYamlPath] = useState("");
 	const [loadingPhase, setLoadingPhase] = useState(null);
 	const [isApiGeneratorOpen, setIsApiGeneratorOpen] = useState(false);
 	const [kubecostBaseUrl, setKubecostBaseUrl] = useState("");
@@ -73,6 +73,9 @@ function App() {
 	const [loadingMessage, setLoadingMessage] = useState("");
 	const [comparisonReport, setComparisonReport] = useState("");
 	const [copySuccess, setCopySuccess] = useState("");
+
+	const [githubUrl, setGithubUrl] = useState("");  // Github 링크 하나만 받도록 변경
+	const [githubToken, setGithubToken] = useState("");
 
 	// isPolling 상태가 변경될 때마다 이펙트를 실행합니다.
 	useEffect(() => {
@@ -243,30 +246,72 @@ function App() {
 		}
 	};
 
+	// const handleAccept = async () => {
+	// 	try {
+	// 		const payload = {
+	// 			yamlRecommended: suggestedYaml,
+	// 			yamlFileName,
+	// 			yamlPath,
+	// 		};
+
+	// 		const res = await fetch(acceptApi, {
+	// 			method: "POST",
+	// 			headers: { "Content-Type": "application/json" },
+	// 			body: JSON.stringify(payload),
+	// 		});
+
+	// 		if (!res.ok) {
+	// 			const text = await res.text();
+	// 			throw new Error(`수락 요청 실패: ${res.status}, ${text}`);
+	// 		}
+
+	// 		alert("Github push 완료! Github repository 혹은 argoCD를 확인해보세요.");
+	// 	} catch (err) {
+	// 		alert(`에러: ${err.message}`);
+	// 	}
+	// };
+
+
 	const handleAccept = async () => {
+		const parsed = parseGithubUrl(githubUrl);
+		if (!parsed) return; // 잘못된 URL이면 중단
+
+		const { repo, branch, path } = parsed;
+
+		//  값 찍어보기
+		console.log("Parsed Github URL:", parsed);
+		console.log("Suggested YAML:", suggestedYaml);
+		console.log("Github Token:", githubToken);
+
 		try {
 			const payload = {
-				yamlRecommended: suggestedYaml,
-				yamlFileName,
-				yamlPath,
+			yamlRecommended: suggestedYaml,
+			repo,
+			branch,
+			path,
+			githubToken,
 			};
 
+			console.log("Payload to Lambda:", payload); // 최종적으로 보낼 JSON 확인
+
 			const res = await fetch(acceptApi, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(payload),
 			});
 
 			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(`수락 요청 실패: ${res.status}, ${text}`);
+			const text = await res.text();
+			throw new Error(`수락 요청 실패: ${res.status}, ${text}`);
 			}
 
 			alert("Github push 완료! Github repository 혹은 argoCD를 확인해보세요.");
 		} catch (err) {
+			console.error("Github push error:", err); 
 			alert(`에러: ${err.message}`);
 		}
 	};
+
 
 	const handleGenerateApiUrl = () => {
 		if (!kubecostBaseUrl) {
@@ -331,6 +376,27 @@ function App() {
 		const { name, checked } = e.target;
 		setExcludedNamespaces((prev) => ({ ...prev, [name]: checked }));
 	};
+
+	// URL 파싱 함수 추가
+	const parseGithubUrl = (url) => {
+		try {
+			const u = new URL(url);
+			const parts = u.pathname.split('/').filter(Boolean);
+			if (parts[2] !== 'blob') throw new Error('Invalid Github file URL');
+
+			const repo = `${parts[0]}/${parts[1]}`;
+			const branch = parts[3];
+			const path = parts.slice(4).join('/');
+			const fileName = parts[parts.length - 1];
+
+			return { repo, branch, path, fileName };
+		} catch (e) {
+			console.error(e);
+			alert("올바르지 않은 Github URL입니다.");
+			return null;
+		}
+	};
+
 
 	const sectionStyle = {
 		backgroundColor: "#f8f9fa",
@@ -671,10 +737,10 @@ function App() {
 					</div>
 				</div>
 			</div>
-			<div style={{ display: 'flex', alignItems: 'baseline' }}>
+			{/* <div style={{ display: 'flex', alignItems: 'baseline' }}>
 					<h4 className="section-title">Kostai가 제안한 파일 Github에 push하기</h4>
 					<InfoIcon text="KostAI가 제안한 파일을 원하는 Github repository에 push할 수 있습니다. \n Github repository 이름과 경로, Github ID와 token을 입력하면 해당 파일을 찾아서 변경, push합니다." />
-				</div>
+			</div>
 			<input
 				type="text"
 				placeholder="Github에 저장되어 있는 파일 이름 (예: exam_file.yaml)"
@@ -688,7 +754,32 @@ function App() {
 				value={yamlPath}
 				onChange={(e) => setYamlPath(e.target.value)}
 				style={{ width: "100%", marginBottom: "1rem" }}
-			/>
+			/> */}
+
+			<div className="form-section">
+			<div style={{ display: 'flex', alignItems: 'baseline' }}>
+					<h4 className="section-title">Kostai가 제안한 파일 Github에 push하기</h4>
+					<InfoIcon text="KostAI가 제안한 파일을 원하는 Github repository에 push할 수 있습니다. \n Github repository 이름과 경로, Github ID와 token을 입력하면 해당 파일을 찾아서 변경, push합니다." />
+			</div>
+			<div className="input-card">
+				<input
+				type="text"
+				placeholder="Github File URL (ex: https://github.com/user/repo/blob/main/path/file.yaml)"
+				value={githubUrl}
+				onChange={(e) => setGithubUrl(e.target.value)}
+				style={{ width: "100%", marginBottom: "0.5rem" }}
+				/>
+				<input
+				type="text"
+				placeholder="Github Token (보안을 위해 token의 유효기간을 짧게 설정해주세요. ex. 1시간)"
+				value={githubToken}
+				onChange={(e) => setGithubToken(e.target.value)}
+				style={{ width: "100%" }}
+				/>
+			</div>
+			</div>
+
+			
 			<div style={{ marginTop: "1rem", textAlign: "center" }}>
 				<button
 					className="kostai-button"
