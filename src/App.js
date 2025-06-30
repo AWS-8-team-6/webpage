@@ -3,12 +3,21 @@ import "./App.css";
 import InfoIcon from "./InfoIcon"; 
 import Lottie from "lottie-react";
 import loadingAnimation from "./assets/1751182673400.json";
+import JSEncrypt from 'jsencrypt';
 
 const baseUrl = process.env.REACT_APP_API_GATEWAY_BASE;
 const executeApi = `${baseUrl}/execute`;
 const resultApi = `${baseUrl}/result`;
 const presignApi = `${baseUrl}/presign`;
 const acceptApi = `${baseUrl}/accept`;
+const publicKey = process.env.REACT_APP_PUBLIC_KEY.replace(/\\n/g, '\n');
+
+const encryptToken = (token) => {
+  const jsEncrypt = new JSEncrypt();
+  jsEncrypt.setPublicKey(publicKey);
+  return jsEncrypt.encrypt(token);
+};
+
 
 const generateUUID = () => {
 	return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) =>
@@ -278,10 +287,13 @@ function App() {
 
 		const { repo, branch, path } = parsed;
 
+		const encryptedToken = encryptToken(githubToken);
+
 		//  값 찍어보기
 		console.log("Parsed Github URL:", parsed);
 		console.log("Suggested YAML:", suggestedYaml);
-		console.log("Github Token:", githubToken);
+		console.log("Github Token:", encryptedToken);
+		
 
 		try {
 			const payload = {
@@ -289,7 +301,7 @@ function App() {
 			repo,
 			branch,
 			path,
-			githubToken,
+			encryptedToken
 			};
 
 			console.log("Payload to Lambda:", payload); // 최종적으로 보낼 JSON 확인
