@@ -1,1 +1,1 @@
-# kostai web page
+# KostAI web page
